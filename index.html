@@ -407,12 +407,19 @@ main{padding-left:12px;padding-right:12px;}
   let total=0;
   const lines=[...cart.values()].map(x=>{const amount=x.price*x.qty;total+=amount;return '• '+x.name+' — '+x.label+' × '+x.qty+' = ₹'+money(amount)});
   const message=[
-   'HURMAT DARBAR',
-   'Table: '+table,
+   '🍽️ *HURMAT DARBAR*',
+   '',
+   "Hello! I'd like to place my order on my table.",
+   'Name: '+name,
+   'Phone: '+phone,
+   'Table: '+table+' | Guests: '+guests,
    '',
    ...lines,
    '',
-   'Total: ₹'+money(total)
+   '*Grand Total: ₹'+money(total)+'*',
+   '',
+   'Please confirm my order.',
+   'Thank you for choosing *Hurmat Darbar!* ❤️'
   ].join('\n');
   const waUrl='https://wa.me/'+RESTAURANT_WA+'?text='+encodeURIComponent(message);
   $('hd-place').disabled=true;$('hd-place').textContent='Opening WhatsApp…';
