@@ -340,20 +340,20 @@ main{padding-left:12px;padding-right:12px;}
   <div class="hd-grid">
     <label>Name<input id="hd-name" class="hd-field" maxlength="80" autocomplete="name" placeholder="Your name"></label>
     <label>Phone<input id="hd-phone" class="hd-field" inputmode="numeric" maxlength="10" autocomplete="tel" placeholder="10-digit number"></label>
-    <label>Table<select id="hd-table" class="hd-field"><option value="">Loading tables…</option></select></label>
+    <label>Table<select id="hd-table" class="hd-field"><option value="">Choose table</option><option value="1">Table 1</option><option value="2">Table 2</option><option value="3">Table 3</option><option value="4">Table 4</option><option value="5">Table 5</option><option value="6">Table 6</option><option value="7">Table 7</option><option value="8">Table 8</option><option value="9">Table 9</option><option value="10">Table 10</option><option value="11">Table 11</option><option value="12">Table 12</option><option value="13">Table 13</option><option value="14">Table 14</option><option value="15">Table 15</option></select></label>
     <label>Guests<select id="hd-guests" class="hd-field"><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
   </div>
   <label>Special instructions (optional)<input id="hd-notes" class="hd-field" maxlength="500" placeholder="Any request for the kitchen"></label>
-  <div id="hd-status" role="status">Loading menu and table availability…</div>
+  <div id="hd-status" role="status">Loading menu…</div>
   <button id="hd-place" class="hd-submit" type="button">Place Table Order</button>
-  <p class="hd-note">No online payment is required. Pay cash directly at the restaurant after your order is confirmed.</p>
+  <p class="hd-note">No online payment is required. Your order will open in WhatsApp. Send the message to place it. Pay cash at the restaurant counter.</p>
 </div></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 (()=> {
  const URL='https://rvrboufrnkzuptfjopwd.supabase.co';
  const KEY='sb_publishable_n1PWbHcomKpd63FPDdWSEw_iSo6UTi0';
- const FN=URL+'/functions/v1/create-dine-in-order';
+ const RESTAURANT_WA='919797151590';
  const $=id=>document.getElementById(id);
  const db=window.supabase.createClient(URL,KEY);
  let products=[], cart=new Map(), tables=[];
@@ -397,43 +397,40 @@ main{padding-left:12px;padding-right:12px;}
   attachButtons();
   say('Menu loaded. Add dishes to your cart.');
  }
- async function loadTables(){
-  const r=await fetch(FN+'?view=tables',{headers:{'apikey':KEY}});
-  const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'Could not load tables');
-  tables=j.tables||[];$('hd-table').innerHTML='<option value="">Choose table</option>'+tables.map(t=>'<option value="'+t.table_number+'" '+(!t.available?'disabled':'')+'>Table '+t.table_number+' · '+(t.available?'Available':'Occupied')+'</option>').join('');
- }
  async function place(){
   if(!cart.size){say('Please add at least one dish.');return}
-  const name=$('hd-name').value.trim(),phone=$('hd-phone').value.replace(/\D/g,''),table=Number($('hd-table').value),guests=Number($('hd-guests').value);
+  const name=$('hd-name').value.trim(),phone=$('hd-phone').value.replace(/\\D/g,''),table=Number($('hd-table').value),guests=Number($('hd-guests').value);
   if(name.length<2){say('Enter your name.');return}
-  if(!/^\d{10}$/.test(phone)){say('Enter a valid 10-digit phone number.');return}
-  if(!table){say('Choose an available table.');return}
+  if(!/^\\d{10}$/.test(phone)){say('Enter a valid 10-digit phone number.');return}
+  if(!table||table<1||table>15){say('Choose a table from 1 to 15.');return}
   if(guests<1||guests>4){say('Choose 1 to 4 guests.');return}
-  const items=[...cart.values()].map(x=>({item_id:x.item_id,variant_id:x.variant_id,qty:x.qty}));
-  $('hd-place').disabled=true;$('hd-place').textContent='Sending order…';say('Checking table and saving your order…');
-  // Open a tab directly from the user's tap so mobile browsers do not block the later WhatsApp redirect.
-  let waTab=null;
-  try{waTab=window.open('about:blank','_blank');}catch(_){}
-  try{
-   const res=await fetch(FN,{method:'POST',headers:{'Content-Type':'application/json','apikey':KEY},body:JSON.stringify({customer_name:name,customer_phone:phone,table_number:table,guest_count:guests,notes:$('hd-notes').value,items})});
-   const out=await res.json();if(!res.ok||!out.ok)throw new Error(out.error||'Order could not be placed.');
-   cart.clear();draw();say('Order #'+out.order_no+' saved for Table '+out.table_number+'. Total ₹'+money(out.total)+'. Opening restaurant WhatsApp…');
-   if(out.whatsapp_url){
-    if(waTab&&!waTab.closed){waTab.location.href=out.whatsapp_url;}
-    else{window.location.href=out.whatsapp_url;}
-    return;
-   }
-   if(waTab&&!waTab.closed)waTab.close();
-   say('Order saved, but WhatsApp link was not returned. Please contact the restaurant.');
-   await loadTables();
-  }catch(e){
-   if(waTab&&!waTab.closed){try{waTab.close();}catch(_){}}
-   say(e.message||'Order failed. Please retry.');
-  }
-  finally{$('hd-place').disabled=false;$('hd-place').textContent='Place Table Order'}
+  let total=0;
+  const lines=[...cart.values()].map(x=>{const amount=x.price*x.qty;total+=amount;return '• '+x.name+' — '+x.label+' × '+x.qty+' = ₹'+money(amount)});
+  const notes=$('hd-notes').value.trim();
+  const message=[
+   '🍽️ *NEW DINE-IN ORDER — HURMAT DARBAR*',
+   '',
+   '*Table:* '+table,
+   '*Customer:* '+name,
+   '*Phone:* +91 '+phone,
+   '*Guests:* '+guests,
+   '',
+   '*ORDER ITEMS*',
+   ...lines,
+   '',
+   '*TOTAL: ₹'+money(total)+'*',
+   '*Payment:* Cash at restaurant counter',
+   notes?'*Special instructions:* '+notes:'',
+   '',
+   'Please confirm this table order. Thank you.'
+  ].filter(Boolean).join('\\n');
+  const waUrl='https://wa.me/'+RESTAURANT_WA+'?text='+encodeURIComponent(message);
+  $('hd-place').disabled=true;$('hd-place').textContent='Opening WhatsApp…';
+  say('Opening Hurmat Darbar WhatsApp with your order details…');
+  window.location.href=waUrl;
  }
  $('hd-place').onclick=place;
- Promise.all([loadMenu(),loadTables()]).catch(e=>say('Ordering setup issue: '+(e.message||'Please refresh the page.')));
+ loadMenu().catch(e=>say('Menu loading issue: '+(e.message||'Please refresh the page.')));
  new MutationObserver(()=>attachButtons()).observe(document.getElementById('m'),{childList:true,subtree:true});
 })();
 </script>
