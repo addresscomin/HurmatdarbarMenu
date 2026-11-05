@@ -360,7 +360,7 @@ main{padding-left:12px;padding-right:12px;}
  const say=t=>{$('hd-status').textContent=t};
  const open=()=>{$('hd-order-panel').classList.add('open');$('hd-order-panel').setAttribute('aria-hidden','false');draw()};
  const close=()=>{$('hd-order-panel').classList.remove('open');$('hd-order-panel').setAttribute('aria-hidden','true')};
- $('hd-order-fab').onclick=open;$('hd-close').onclick=close;
+ $('hd-order-fab').onclick=open;$('hd-close').onclick=close;const homeOrder=$('hd-home-order-link');if(homeOrder)homeOrder.addEventListener('click',e=>{e.preventDefault();open()});
  $('hd-order-panel').addEventListener('click',e=>{if(e.target===$('hd-order-panel'))close()});
  function draw(){
   let html='',total=0,count=0;
