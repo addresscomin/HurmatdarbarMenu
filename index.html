@@ -399,9 +399,9 @@ main{padding-left:12px;padding-right:12px;}
  }
  async function place(){
   if(!cart.size){say('Please add at least one dish.');return}
-  const name=$('hd-name').value.trim(),phone=$('hd-phone').value.replace(/\\D/g,''),table=Number($('hd-table').value),guests=Number($('hd-guests').value);
+  const name=$('hd-name').value.trim(),phone=$('hd-phone').value.replace(/\D/g,''),table=Number($('hd-table').value),guests=Number($('hd-guests').value);
   if(name.length<2){say('Enter your name.');return}
-  if(!/^\\d{10}$/.test(phone)){say('Enter a valid 10-digit phone number.');return}
+  if(!/^\d{10}$/.test(phone)){say('Enter a valid 10-digit phone number.');return}
   if(!table||table<1||table>15){say('Choose a table from 1 to 15.');return}
   if(guests<1||guests>4){say('Choose 1 to 4 guests.');return}
   let total=0;
@@ -419,7 +419,7 @@ main{padding-left:12px;padding-right:12px;}
   say('Opening Hurmat Darbar WhatsApp with your order details…');
   window.location.href=waUrl;
  }
- $('hd-place').onclick=place;
+ $('hd-phone').addEventListener('input',e=>{e.target.value=e.target.value.replace(/\D/g,'').slice(0,10)});\n $('hd-place').onclick=place;
  loadMenu().catch(e=>say('Menu loading issue: '+(e.message||'Please refresh the page.')));
  new MutationObserver(()=>attachButtons()).observe(document.getElementById('m'),{childList:true,subtree:true});
 })();
