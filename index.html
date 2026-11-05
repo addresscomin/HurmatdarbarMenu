@@ -411,14 +411,25 @@ main{padding-left:12px;padding-right:12px;}
   if(guests<1||guests>4){say('Choose 1 to 4 guests.');return}
   const items=[...cart.values()].map(x=>({item_id:x.item_id,variant_id:x.variant_id,qty:x.qty}));
   $('hd-place').disabled=true;$('hd-place').textContent='Sending order…';say('Checking table and saving your order…');
+  // Open a tab directly from the user's tap so mobile browsers do not block the later WhatsApp redirect.
+  let waTab=null;
+  try{waTab=window.open('about:blank','_blank');}catch(_){}
   try{
    const res=await fetch(FN,{method:'POST',headers:{'Content-Type':'application/json','apikey':KEY},body:JSON.stringify({customer_name:name,customer_phone:phone,table_number:table,guest_count:guests,notes:$('hd-notes').value,items})});
    const out=await res.json();if(!res.ok||!out.ok)throw new Error(out.error||'Order could not be placed.');
    cart.clear();draw();say('Order #'+out.order_no+' saved for Table '+out.table_number+'. Total ₹'+money(out.total)+'. Opening restaurant WhatsApp…');
-   if(out.whatsapp_url){window.location.assign(out.whatsapp_url);return;}
-   say('Order saved, but WhatsApp destination is unavailable. Please contact the restaurant.');
+   if(out.whatsapp_url){
+    if(waTab&&!waTab.closed){waTab.location.href=out.whatsapp_url;}
+    else{window.location.href=out.whatsapp_url;}
+    return;
+   }
+   if(waTab&&!waTab.closed)waTab.close();
+   say('Order saved, but WhatsApp link was not returned. Please contact the restaurant.');
    await loadTables();
-  }catch(e){say(e.message||'Order failed. Please retry.')}
+  }catch(e){
+   if(waTab&&!waTab.closed){try{waTab.close();}catch(_){}}
+   say(e.message||'Order failed. Please retry.');
+  }
   finally{$('hd-place').disabled=false;$('hd-place').textContent='Place Table Order'}
  }
  $('hd-place').onclick=place;
