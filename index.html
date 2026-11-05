@@ -400,8 +400,9 @@ main{padding-left:12px;padding-right:12px;}
   try{
    const res=await fetch(FN,{method:'POST',headers:{'Content-Type':'application/json','apikey':KEY},body:JSON.stringify({customer_name:name,customer_phone:phone,table_number:table,guest_count:guests,notes:$('hd-notes').value,items})});
    const out=await res.json();if(!res.ok||!out.ok)throw new Error(out.error||'Order could not be placed.');
-   cart.clear();draw();say('Order #'+out.order_no+' sent for Table '+out.table_number+'. Total ₹'+money(out.total)+'. Owner has been notified in the dashboard.');
-   if(out.whatsapp_url){const link=document.createElement('a');link.href=out.whatsapp_url;link.target='_blank';link.rel='noopener';link.textContent='Open WhatsApp order message';link.style.cssText='display:inline-block;margin-top:8px;color:#c8281e;font-weight:700';$('hd-status').appendChild(document.createElement('br'));$('hd-status').appendChild(link)}
+   cart.clear();draw();say('Order #'+out.order_no+' saved for Table '+out.table_number+'. Total ₹'+money(out.total)+'. Opening restaurant WhatsApp…');
+   if(out.whatsapp_url){window.location.assign(out.whatsapp_url);return;}
+   say('Order saved, but WhatsApp destination is unavailable. Please contact the restaurant.');
    await loadTables();
   }catch(e){say(e.message||'Order failed. Please retry.')}
   finally{$('hd-place').disabled=false;$('hd-place').textContent='Place Table Order'}
