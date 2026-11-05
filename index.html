@@ -405,22 +405,28 @@ main{padding-left:12px;padding-right:12px;}
   if(!table||table<1||table>15){say('Choose a table from 1 to 15.');return}
   if(guests<1||guests>4){say('Choose 1 to 4 guests.');return}
   let total=0;
-  const lines=[...cart.values()].map(x=>{const amount=x.price*x.qty;total+=amount;return '• '+x.name+' — '+x.label+' × '+x.qty+' = ₹'+money(amount)});
+  const lines=[...cart.values()].map((x,index)=>{
+   const amount=x.price*x.qty;total+=amount;
+   return (index+1)+'. *'+x.name+'*\\n   Option: '+x.label+'\\n   Quantity: '+x.qty+' × ₹'+money(x.price)+' = *₹'+money(amount)+'*';
+  });
+  const notes=$('hd-notes').value.trim();
   const message=[
-   '🍽️ *HURMAT DARBAR*',
+   '🍽️ *HURMAT DARBAR — TABLE ORDER*',
+   '━━━━━━━━━━━━━━━━━━',
+   '*Customer:* '+name,
+   '*Phone:* '+phone,
+   '*Table:* '+table+'    *Guests:* '+guests,
    '',
-   "Hello! I'd like to place my order on my table.",
-   'Name: '+name,
-   'Phone: '+phone,
-   'Table: '+table+' | Guests: '+guests,
-   '',
+   '*ORDER DETAILS*',
    ...lines,
    '',
-   '*Grand Total: ₹'+money(total)+'*',
+   '━━━━━━━━━━━━━━━━━━',
+   '*TOTAL PAYABLE: ₹'+money(total)+'*',
+   notes ? '' : null,
+   notes ? '*Special request:* '+notes : null,
    '',
-   'Please confirm my order.',
-   'Thank you for choosing *Hurmat Darbar!* ❤️'
-  ].join('\n');
+   'Please confirm this order. Thank you for choosing *Hurmat Darbar*!'
+  ].filter(x=>x!==null).join('\\n');
   const waUrl='https://wa.me/'+RESTAURANT_WA+'?text='+encodeURIComponent(message);
   $('hd-place').disabled=true;$('hd-place').textContent='Opening WhatsApp…';
   say('Opening Hurmat Darbar WhatsApp with your order details…');
