@@ -278,5 +278,116 @@ q.oninput=()=>{ch.querySelectorAll('.on').forEach(x=>x.classList.remove('on'));r
 render();
 try{new QRCode(document.getElementById('qr'),{text:location.href.split('#')[0],width:170,height:170})}catch(e){document.getElementById('qr').textContent='QR unavailable'}
 </script>
+
+<style>
+#hd-order-fab{position:fixed;right:16px;bottom:18px;z-index:20;background:#c8281e;color:#fff;border:0;border-radius:99px;padding:14px 19px;font:700 14px Poppins, sans-serif;box-shadow:0 8px 28px #0004}
+#hd-order-count{background:#e2a93b;color:#2a1712;border-radius:99px;padding:2px 7px;margin-left:6px}
+#hd-order-panel{display:none;position:fixed;inset:0;z-index:30;background:#0009;align-items:flex-end;justify-content:center}
+#hd-order-panel.open{display:flex}
+#hd-order-sheet{width:min(100%,620px);max-height:92dvh;overflow:auto;background:var(--bg);color:var(--ink);border-radius:22px 22px 0 0;padding:18px 16px 28px;box-shadow:0 -10px 40px #0004}
+#hd-order-sheet h2{font-family:Poppins,sans-serif;font-size:20px;color:var(--ink);border:0;margin:0 0 12px}
+.hd-field{width:100%;padding:12px;border:1px solid var(--line);border-radius:11px;background:var(--card);color:var(--ink);font:inherit;margin:5px 0 10px}
+.hd-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.hd-add{border:0;border-radius:10px;background:#c8281e;color:white;padding:8px 12px;font-weight:700}
+.hd-qty{display:flex;align-items:center;gap:8px}
+.hd-qty button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:4px 10px}
+.hd-cartline{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
+.hd-note{font-size:12px;color:var(--mute)}
+.hd-submit{width:100%;border:0;border-radius:12px;background:#c8281e;color:white;padding:14px;font:700 15px Poppins,sans-serif;margin-top:12px}
+#hd-status{padding:10px 0;font-size:13px;color:var(--mute)}
+</style>
+<button id="hd-order-fab" type="button">Order at Table <span id="hd-order-count">0</span></button>
+<div id="hd-order-panel" aria-hidden="true"><div id="hd-order-sheet">
+  <div style="display:flex;justify-content:space-between;align-items:center"><h2>Order at your table</h2><button id="hd-close" type="button" aria-label="Close" style="border:0;background:transparent;color:var(--ink);font-size:25px">×</button></div>
+  <p class="hd-note">Select dishes from the menu, then choose your table and guest count.</p>
+  <div id="hd-cart"></div>
+  <div style="font-weight:700;margin:12px 0">Total: ₹<span id="hd-total">0</span></div>
+  <div class="hd-grid">
+    <label>Name<input id="hd-name" class="hd-field" maxlength="80" autocomplete="name" placeholder="Your name"></label>
+    <label>Phone<input id="hd-phone" class="hd-field" inputmode="numeric" maxlength="10" autocomplete="tel" placeholder="10-digit number"></label>
+    <label>Table<select id="hd-table" class="hd-field"><option value="">Loading tables…</option></select></label>
+    <label>Guests<select id="hd-guests" class="hd-field"><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
+  </div>
+  <label>Special instructions (optional)<input id="hd-notes" class="hd-field" maxlength="500" placeholder="Any request for the kitchen"></label>
+  <div id="hd-status" role="status">Loading menu and table availability…</div>
+  <button id="hd-place" class="hd-submit" type="button">Place Table Order</button>
+  <p class="hd-note">Your order is sent to the restaurant for confirmation. Payment is not collected on this page.</p>
+</div></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(()=> {
+ const URL='https://rvrboufrnkzuptfjopwd.supabase.co';
+ const KEY='sb_publishable_n1PWbHcomKpd63FPDdWSEw_iSo6UTi0';
+ const FN=URL+'/functions/v1/create-dine-in-order';
+ const $=id=>document.getElementById(id);
+ const db=window.supabase.createClient(URL,KEY);
+ let products=[], cart=new Map(), tables=[];
+ const clean=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+ const money=n=>Number(n||0).toLocaleString('en-IN');
+ const say=t=>{$('hd-status').textContent=t};
+ const open=()=>{$('hd-order-panel').classList.add('open');$('hd-order-panel').setAttribute('aria-hidden','false');draw()};
+ const close=()=>{$('hd-order-panel').classList.remove('open');$('hd-order-panel').setAttribute('aria-hidden','true')};
+ $('hd-order-fab').onclick=open;$('hd-close').onclick=close;
+ $('hd-order-panel').addEventListener('click',e=>{if(e.target===$('hd-order-panel'))close()});
+ function draw(){
+  let html='',total=0,count=0;
+  for(const [key,line] of cart){const sum=line.price*line.qty;total+=sum;count+=line.qty;
+   html+='<div class="hd-cartline"><div><b>'+line.name+'</b><div class="hd-note">'+line.label+' · ₹'+money(line.price)+'</div></div><div class="hd-qty"><button data-k="'+key+'" data-d="-1">−</button>'+line.qty+'<button data-k="'+key+'" data-d="1">+</button></div></div>';
+  }
+  $('hd-cart').innerHTML=html||'<p class="hd-note">Your cart is empty. Tap Add beside a dish to begin.</p>';
+  $('hd-total').textContent=money(total);$('hd-order-count').textContent=count;
+  $('hd-cart').querySelectorAll('button').forEach(b=>b.onclick=()=>{const line=cart.get(b.dataset.k);line.qty+=Number(b.dataset.d);if(line.qty<=0)cart.delete(b.dataset.k);draw()});
+ }
+ function attachButtons(){
+  document.querySelectorAll('.it').forEach(row=>{
+   if(row.querySelector('.hd-add'))return;
+   const nameEl=row.querySelector('.n');if(!nameEl)return;
+   const name=nameEl.textContent.replace(/^\S+\s/,'').trim();
+   const item=products.find(p=>clean(p.name)===clean(name));
+   if(!item)return;
+   const wrap=document.createElement('span');wrap.style.cssText='display:flex;align-items:center;gap:5px;flex:none';
+   const select=document.createElement('select');select.className='hd-field';select.style.cssText='width:auto;max-width:105px;padding:6px;margin:0;font-size:11px';
+   item.variants.forEach(v=>{const o=document.createElement('option');o.value=v.id;o.textContent=v.label+' ₹'+v.price;select.appendChild(o)});
+   const btn=document.createElement('button');btn.className='hd-add';btn.type='button';btn.textContent='Add';
+   btn.onclick=()=>{const v=item.variants.find(x=>x.id===select.value);if(!v)return;const key=item.id+':'+v.id;const line=cart.get(key)||{item_id:item.id,variant_id:v.id,name:item.name,label:v.label,price:v.price,qty:0};if(line.qty>=10){say('Maximum 10 per dish.');open();return}line.qty++;cart.set(key,line);draw();say(item.name+' added to cart.')};
+   wrap.append(select,btn);row.appendChild(wrap);
+  });
+ }
+ async function loadMenu(){
+  const {data,error}=await db.from('menu_items').select('id,name,category_id,menu_variants(id,label,price,active)').eq('active',true).eq('available',true).order('sort_order');
+  if(error)throw error;
+  products=(data||[]).map(p=>({...p,variants:(p.menu_variants||[]).filter(v=>v.active&&v.price>0)})).filter(p=>p.variants.length);
+  attachButtons();
+  say('Menu loaded. Add dishes to your cart.');
+ }
+ async function loadTables(){
+  const r=await fetch(FN+'?view=tables',{headers:{'apikey':KEY}});
+  const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||'Could not load tables');
+  tables=j.tables||[];$('hd-table').innerHTML='<option value="">Choose table</option>'+tables.map(t=>'<option value="'+t.table_number+'" '+(!t.available?'disabled':'')+'>Table '+t.table_number+' · '+(t.available?'Available':'Occupied')+'</option>').join('');
+ }
+ async function place(){
+  if(!cart.size){say('Please add at least one dish.');return}
+  const name=$('hd-name').value.trim(),phone=$('hd-phone').value.replace(/\D/g,''),table=Number($('hd-table').value),guests=Number($('hd-guests').value);
+  if(name.length<2){say('Enter your name.');return}
+  if(!/^\d{10}$/.test(phone)){say('Enter a valid 10-digit phone number.');return}
+  if(!table){say('Choose an available table.');return}
+  if(guests<1||guests>4){say('Choose 1 to 4 guests.');return}
+  const items=[...cart.values()].map(x=>({item_id:x.item_id,variant_id:x.variant_id,qty:x.qty}));
+  $('hd-place').disabled=true;$('hd-place').textContent='Sending order…';say('Checking table and saving your order…');
+  try{
+   const res=await fetch(FN,{method:'POST',headers:{'Content-Type':'application/json','apikey':KEY},body:JSON.stringify({customer_name:name,customer_phone:phone,table_number:table,guest_count:guests,notes:$('hd-notes').value,items})});
+   const out=await res.json();if(!res.ok||!out.ok)throw new Error(out.error||'Order could not be placed.');
+   cart.clear();draw();say('Order #'+out.order_no+' sent for Table '+out.table_number+'. Total ₹'+money(out.total)+'. Owner has been notified in the dashboard.');
+   if(out.whatsapp_url){const link=document.createElement('a');link.href=out.whatsapp_url;link.target='_blank';link.rel='noopener';link.textContent='Open WhatsApp order message';link.style.cssText='display:inline-block;margin-top:8px;color:#c8281e;font-weight:700';$('hd-status').appendChild(document.createElement('br'));$('hd-status').appendChild(link)}
+   await loadTables();
+  }catch(e){say(e.message||'Order failed. Please retry.')}
+  finally{$('hd-place').disabled=false;$('hd-place').textContent='Place Table Order'}
+ }
+ $('hd-place').onclick=place;
+ Promise.all([loadMenu(),loadTables()]).catch(e=>say('Ordering setup issue: '+(e.message||'Please refresh the page.')));
+ new MutationObserver(()=>attachButtons()).observe(document.getElementById('m'),{childList:true,subtree:true});
+})();
+</script>
+
 </body>
 </html>
